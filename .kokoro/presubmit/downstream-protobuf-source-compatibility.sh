@@ -37,15 +37,16 @@ setup_maven_mirror
 
 pushd gapic-generator-java-pom-parent
 sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" pom.xml
+
+echo "Done editing file"
+cat pom.xml
+
 popd
 
 install_repo_modules '!gapic-generator-java'
 SHARED_DEPS_VERSION=$(parse_pom_version java-shared-dependencies)
 echo "Install complete. java-shared-dependencies = $SHARED_DEPS_VERSION"
 
-mvn dependency:tree
-
-pushd java-shared-dependencies/target
 
 for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
   # Perform testing on last release, not HEAD
@@ -59,6 +60,7 @@ for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
       -Dmaven.javadoc.skip=true \
       -Dgcloud.download.skip=true \
       -T 1C
+  popd
 
   update_all_poms_dependency "$repo" google-cloud-shared-dependencies "$SHARED_DEPS_VERSION"
   mvn test -B -ntp -Dclirr.skip=true -Denforcer.skip=true ${SUREFIRE_JVM_OPT}
