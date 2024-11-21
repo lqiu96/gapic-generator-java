@@ -21,7 +21,7 @@ if [ -z "${REPOS_UNDER_TEST}" ]; then
   exit 1
 fi
 
-# Comma-delimited list of repos to test with the local java-shared-dependencies
+# Version of Protobuf-Java runtime to update in java-shared-dependencies
 if [ -z "${PROTOBUF_RUNTIME_VERSION}" ]; then
   echo "PROTOBUF_RUNTIME_VERSION must be set to run downstream-protobuf-source-compatibility.sh"
   exit 1
@@ -35,24 +35,22 @@ source "$scriptDir/common.sh"
 
 setup_maven_mirror
 
+# Update Protobuf-Java runtime version
 pushd gapic-generator-java-pom-parent
 sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" pom.xml
-
-echo "Done editing file"
-cat pom.xml
-
 popd
 
+# Install Shared-Deps with the Protobuf-Java version
 install_repo_modules '!gapic-generator-java'
 SHARED_DEPS_VERSION=$(parse_pom_version java-shared-dependencies)
 echo "Install complete. java-shared-dependencies = $SHARED_DEPS_VERSION"
 
-
 for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
-  # Perform testing on last release, not HEAD
-  last_release=$(find_last_release_version "$repo")
-  git clone "https://github.com/googleapis/$repo.git" --depth=1 --branch "v$last_release"
+  # Perform source-compatibility testing on main (latest changes)
+  git clone "https://github.com/googleapis/$repo.git" --depth=1
+
   pushd "$repo"
+  # Compile and Install the Handwritten Library with the old Protobuf-Java version
   mvn clean install -B -V -ntp \
       -DskipTests=true \
       -Dclirr.skip=true \
@@ -62,8 +60,9 @@ for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
       -T 1C
   popd
 
+  # Update the Handwritten Library to use the new Shared-Dependencies (new Protobuf-Java version)
   update_all_poms_dependency "$repo" google-cloud-shared-dependencies "$SHARED_DEPS_VERSION"
+
+  # Test the Handwritten Library that was compiled with old Protobuf-Java and run with new Protobuf-Java
   mvn test -B -ntp -Dclirr.skip=true -Denforcer.skip=true ${SUREFIRE_JVM_OPT}
-  popd
 done
-popd
