@@ -36,7 +36,7 @@ source "$scriptDir/common.sh"
 setup_maven_mirror
 
 pushd gapic-generator-java-pom-parent
-sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" gapic-generator-java-pom-parent/pom.xml
+sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" pom.xml
 popd
 
 install_repo_modules '!gapic-generator-java'
