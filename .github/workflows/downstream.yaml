@@ -1,4 +1,5 @@
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -12,7 +13,42 @@ on:
 
 name: Downstream Check
 jobs:
-  downstream-compatibility:
+#  downstream-compatibility:
+#    runs-on: ubuntu-22.04
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        repo:
+#          - google-cloud-java
+#          - java-bigtable
+#          - java-bigquery
+#          - java-bigquerystorage
+#          - java-datastore
+#          - java-firestore
+#          - java-logging
+#          - java-logging-logback
+#          - java-pubsub
+#          - java-pubsublite
+#          - java-spanner-jdbc
+#          - java-spanner
+#          - java-storage
+#          - java-storage-nio
+#    steps:
+#      - uses: actions/checkout@v3
+#      - uses: actions/setup-java@v3
+#        with:
+#          java-version: 17
+#          distribution: temurin
+#      - run: mvn -version
+#      - name: Install xmllint
+#        run: |
+#          sudo apt-get update
+#          sudo apt-get -y install libxml2-utils
+#      - name: Test helper scripts
+#        run: ./.kokoro/presubmit/common_test.sh
+#      - name: Perform downstream compatibility testing
+#        run: REPOS_UNDER_TEST="${{ matrix.repo }}" ./.kokoro/presubmit/downstream-compatibility.sh
+  downstream-protobuf-source-test:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -32,6 +68,9 @@ jobs:
           - java-spanner
           - java-storage
           - java-storage-nio
+        protobuf-version:
+          - 3.25.5
+          - 4.28.2
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3
@@ -46,21 +85,21 @@ jobs:
       - name: Test helper scripts
         run: ./.kokoro/presubmit/common_test.sh
       - name: Perform downstream compatibility testing
-        run: REPOS_UNDER_TEST="${{ matrix.repo }}" ./.kokoro/presubmit/downstream-compatibility.sh
-  downstream-compatibility-spring-generator:
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: temurin
-      - run: mvn -version
-      - name: Install xmllint
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libxml2-utils
-      - name: Perform downstream compatibility testing
-        run: ./.kokoro/presubmit/downstream-compatibility-spring.sh
+        run: REPOS_UNDER_TEST="${{ matrix.repo }}" PROTOBUF_RUNTIME_VERSION="${{ matrix.protobuf-version}}" ./.kokoro/presubmit/downstream-protobuf-source-compatibility.sh
+#  downstream-compatibility-spring-generator:
+#    runs-on: ubuntu-22.04
+#    strategy:
+#      fail-fast: false
+#    steps:
+#      - uses: actions/checkout@v3
+#      - uses: actions/setup-java@v3
+#        with:
+#          java-version: 17
+#          distribution: temurin
+#      - run: mvn -version
+#      - name: Install xmllint
+#        run: |
+#          sudo apt-get update
+#          sudo apt-get -y install libxml2-utils
+#      - name: Perform downstream compatibility testing
+#        run: ./.kokoro/presubmit/downstream-compatibility-spring.sh

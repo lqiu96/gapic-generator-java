@@ -1,0 +1,66 @@
+#!/bin/bash
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -eo pipefail
+
+# Comma-delimited list of repos to test with the local java-shared-dependencies
+if [ -z "${REPOS_UNDER_TEST}" ]; then
+  echo "REPOS_UNDER_TEST must be set to run downstream-protobuf-source-compatibility.sh"
+  exit 1
+fi
+
+# Version of Protobuf-Java runtime to update in java-shared-dependencies
+if [ -z "${PROTOBUF_RUNTIME_VERSION}" ]; then
+  echo "PROTOBUF_RUNTIME_VERSION must be set to run downstream-protobuf-source-compatibility.sh"
+  exit 1
+fi
+
+
+# Get the directory of the build script
+scriptDir=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
+cd "${scriptDir}/../.." # cd to the root of this repo
+source "$scriptDir/common.sh"
+
+setup_maven_mirror
+
+# Update Protobuf-Java runtime version in Shared-Dependencies
+pushd gapic-generator-java-pom-parent
+sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" pom.xml
+echo "Protobuf version has been updated to $(cat pom.xml | grep "protobuf.version")"
+popd
+
+# Install Shared-Deps with the Protobuf-Java version
+install_repo_modules '!gapic-generator-java'
+SHARED_DEPS_VERSION=$(parse_pom_version java-shared-dependencies)
+echo "Install complete. java-shared-dependencies = $SHARED_DEPS_VERSION"
+
+for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
+  # Perform source-compatibility testing on main (latest changes)
+  git clone "https://github.com/googleapis/$repo.git" --depth=1
+
+  # Update the Handwritten Library to use the new Shared-Dependencies (new Protobuf-Java version)
+  update_all_poms_dependency "$repo" google-cloud-shared-dependencies "$SHARED_DEPS_VERSION"
+
+  pushd "$repo"
+  # Compile the Handwritten Library with the Protobuf-Java version to test source compatibility
+  mvn clean compile -B -V -ntp \
+      -DskipTests=true \
+      -Dclirr.skip=true \
+      -Denforcer.skip=true \
+      -Dmaven.javadoc.skip=true \
+      -Dgcloud.download.skip=true \
+      -T 1C
+  popd
+done
