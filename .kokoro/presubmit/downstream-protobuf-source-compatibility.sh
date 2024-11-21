@@ -17,7 +17,13 @@ set -eo pipefail
 
 # Comma-delimited list of repos to test with the local java-shared-dependencies
 if [ -z "${REPOS_UNDER_TEST}" ]; then
-  echo "REPOS_UNDER_TEST must be set to run downstream-compatibility.sh"
+  echo "REPOS_UNDER_TEST must be set to run downstream-protobuf-source-compatibility.sh"
+  exit 1
+fi
+
+# Comma-delimited list of repos to test with the local java-shared-dependencies
+if [ -z "${PROTOBUF_RUNTIME_VERSION}" ]; then
+  echo "PROTOBUF_RUNTIME_VERSION must be set to run downstream-protobuf-source-compatibility.sh"
   exit 1
 fi
 
@@ -29,11 +35,18 @@ source "$scriptDir/common.sh"
 
 setup_maven_mirror
 
+pushd gapic-generator-java-pom-parent
+sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" gapic-generator-java-pom-parent/pom.xml
+popd
+
 install_repo_modules '!gapic-generator-java'
 SHARED_DEPS_VERSION=$(parse_pom_version java-shared-dependencies)
 echo "Install complete. java-shared-dependencies = $SHARED_DEPS_VERSION"
 
+mvn dependency:tree
+
 pushd java-shared-dependencies/target
+
 for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
   # Perform testing on last release, not HEAD
   last_release=$(find_last_release_version "$repo")
