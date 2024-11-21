@@ -35,10 +35,11 @@ source "$scriptDir/common.sh"
 
 setup_maven_mirror
 
-# Update Protobuf-Java runtime version
+# Update Protobuf-Java runtime version in Shared-Dependencies
 pushd gapic-generator-java-pom-parent
 sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" pom.xml
 popd
+echo "Protobuf version has been updated to $(cat pom.xml | grep "protobuf.version")"
 
 # Install Shared-Deps with the Protobuf-Java version
 install_repo_modules '!gapic-generator-java'
@@ -49,9 +50,12 @@ for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
   # Perform source-compatibility testing on main (latest changes)
   git clone "https://github.com/googleapis/$repo.git" --depth=1
 
+  # Update the Handwritten Library to use the new Shared-Dependencies (new Protobuf-Java version)
+  update_all_poms_dependency "$repo" google-cloud-shared-dependencies "$SHARED_DEPS_VERSION"
+
   pushd "$repo"
-  # Compile and Install the Handwritten Library with the old Protobuf-Java version
-  mvn clean install -B -V -ntp \
+  # Compile the Handwritten Library with the Protobuf-Java version to test
+  mvn clean compile -B -V -ntp \
       -DskipTests=true \
       -Dclirr.skip=true \
       -Denforcer.skip=true \
@@ -59,10 +63,4 @@ for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
       -Dgcloud.download.skip=true \
       -T 1C
   popd
-
-  # Update the Handwritten Library to use the new Shared-Dependencies (new Protobuf-Java version)
-  update_all_poms_dependency "$repo" google-cloud-shared-dependencies "$SHARED_DEPS_VERSION"
-
-  # Test the Handwritten Library that was compiled with old Protobuf-Java and run with new Protobuf-Java
-  mvn test -B -ntp -Dclirr.skip=true -Denforcer.skip=true ${SUREFIRE_JVM_OPT}
 done
