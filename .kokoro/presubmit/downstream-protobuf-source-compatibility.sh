@@ -38,8 +38,8 @@ setup_maven_mirror
 # Update Protobuf-Java runtime version in Shared-Dependencies
 pushd gapic-generator-java-pom-parent
 sed -i "/<protobuf.version>.*<\/protobuf.version>/s/\(.*<protobuf.version>\).*\(<\/protobuf.version>\)/\1${PROTOBUF_RUNTIME_VERSION}\2/" pom.xml
-popd
 echo "Protobuf version has been updated to $(cat pom.xml | grep "protobuf.version")"
+popd
 
 # Install Shared-Deps with the Protobuf-Java version
 install_repo_modules '!gapic-generator-java'
@@ -54,7 +54,7 @@ for repo in ${REPOS_UNDER_TEST//,/ }; do # Split on comma
   update_all_poms_dependency "$repo" google-cloud-shared-dependencies "$SHARED_DEPS_VERSION"
 
   pushd "$repo"
-  # Compile the Handwritten Library with the Protobuf-Java version to test
+  # Compile the Handwritten Library with the Protobuf-Java version to test source compatibility
   mvn clean compile -B -V -ntp \
       -DskipTests=true \
       -Dclirr.skip=true \
