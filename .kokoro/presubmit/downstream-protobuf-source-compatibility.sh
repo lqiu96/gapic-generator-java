@@ -21,7 +21,7 @@ if [ -z "${REPOS_UNDER_TEST}" ]; then
   exit 1
 fi
 
-# Version of Protobuf-Java runtime to update in java-shared-dependencies
+# Version of Protobuf-Java runtime to compile with
 if [ -z "${PROTOBUF_RUNTIME_VERSION}" ]; then
   echo "PROTOBUF_RUNTIME_VERSION must be set to run downstream-protobuf-source-compatibility.sh"
   exit 1
