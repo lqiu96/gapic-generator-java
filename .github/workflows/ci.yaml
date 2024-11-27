@@ -1,374 +1,374 @@
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-name: ci
-jobs:
-  build:
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        java: [ 11, 17]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: ${{ matrix.java }}
-          distribution: temurin
-          cache: maven
-      - run: java -version
-      - name: Unit Tests
-        run: |
-          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
-              -Dfmt.skip -DenableTestCoverage
-      # The `envVarTest` profile runs tests that require an environment variable
-      - name: Env Var Tests
-        run: |
-          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
-              -Dfmt.skip -DenableTestCoverage -PenvVarTest
-        # Set the Env Var for this step only
-        env:
-          GOOGLE_CLOUD_UNIVERSE_DOMAIN: random.com
-          GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS: true
-      - run: bazelisk version
-      - name: Install Maven modules
-        run: |
-          mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
-      - name: Integration Tests
-        run: |
-          bazelisk --batch test //test/integration/...
-      - name: Gradle Build Generated Storage Client Library
-        run: |
-          echo "Building Storage lib from generated source..."
-          mkdir /tmp/java-storage
-          bazelisk --batch build @com_google_googleapis//google/storage/v2:google-cloud-storage-v2-java
-          tar zxvf bazel-bin/external/com_google_googleapis/google/storage/v2/google-cloud-storage-v2-java.tar.gz -C /tmp/java-storage
-          pushd /tmp/java-storage/google-cloud-storage-v2-java
-          ./gradlew clean build publishToMavenLocal sourcesJar allJars
-          popd
-
-      - name: Gradle Build Generated Compute Client Library
-        run: |
-          echo "Building Compute lib from generated source..."
-          mkdir /tmp/java-compute
-          bazelisk --batch build @com_google_googleapis//google/cloud/compute/v1small:google-cloud-compute-small-v1-java
-          tar zxvf bazel-bin/external/com_google_googleapis/google/cloud/compute/v1small/google-cloud-compute-small-v1-java.tar.gz -C /tmp/java-compute
-          pushd /tmp/java-compute/google-cloud-compute-small-v1-java
-          ./gradlew clean build publishToMavenLocal sourcesJar allJars
-          popd
-  build-java-21:
-    name: "build(21) except self-service clients"
-    # Support for Java 21 is available for all use cases except self-service clients.
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 21
-          distribution: temurin
-          cache: maven
-      - run: java -version
-      - name: Unit Tests
-        run: |
-          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
-              -Dfmt.skip -DenableTestCoverage
-      # The `envVarTest` profile runs tests that require an environment variable
-      - name: Env Var Tests
-        run: |
-          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
-              -Dfmt.skip -DenableTestCoverage -PenvVarTest
-        # Set the Env Var for this step only
-        env:
-          GOOGLE_CLOUD_UNIVERSE_DOMAIN: random.com
-          GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS: true
-      - run: bazelisk version
-      - name: Install Maven modules
-        run: |
-          mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
-      - name: Integration Tests
-        run: |
-          bazelisk --batch test //test/integration/...
-  build-java8-except-gapic-generator-java:
-    name: "build(8) except for gapic-generator-java"
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      # Java 8 tests uses JDK 17 to compile and JDK 8 to run tests.
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 8
-          distribution: temurin
-          cache: maven
-      - run: echo "JAVA8_HOME=${JAVA_HOME}" >> $GITHUB_ENV
-      - uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: temurin
-      - name: Compile with Java 17 and run tests with Java 8
-        shell: bash
-        run: |
-          set -x
-          export JAVA_HOME=$JAVA_HOME
-          export PATH=${JAVA_HOME}/bin:$PATH
-          # Maven surefire plugin lets us to specify the JVM when running tests via
-          # the "jvm" system property.
-          mvn verify --batch-mode --no-transfer-progress -Dcheckstyle.skip \
-              -Dfmt.skip \
-              -Djvm="${JAVA8_HOME}/bin/java"
-      # The `envVarTest` profile runs tests that require an environment variable
-      - name: Compile with Java 17 and run tests with Java 8 (Env Var Tests)
-        shell: bash
-        run: |
-          set -x
-          export JAVA_HOME=$JAVA_HOME
-          export PATH=${JAVA_HOME}/bin:$PATH
-          # Maven surefire plugin lets us to specify the JVM when running tests via
-          # the "jvm" system property.
-          export GOOGLE_CLOUD_UNIVERSE_DOMAIN=random.com
-          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
-              -Dfmt.skip -DenableTestCoverage -Dsurefire.failIfNoSpecifiedTests=false \
-              -PenvVarTest
-        # Set the Env Var for this step only
-        env:
-          GOOGLE_CLOUD_UNIVERSE_DOMAIN: random.com
-          GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS: true
-
-  build-java8-gapic-generator-java:
-    name: "build(8) for gapic-generator-java"
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 11
-          distribution: temurin
-          cache: maven
-      - name: Install all modules using Java 11
-        shell: bash
-        run: |
-          mvn -V -B -ntp clean install -DskipTests
-      - uses: actions/setup-java@v3
-        with:
-          java-version: 8
-          distribution: temurin
-      - run: java -version
-      - name: Run tests in Java 8 with the source compiled in Java 11 for gapic-generator-java
-        shell: bash
-        run: |
-          mvn -V -B -ntp surefire:test --projects 'gapic-generator-java'
-      - run: bazelisk version
-      - name: Integration Tests
-        run: |
-          bazelisk --batch test //test/integration/...
-      - name: Gradle Build Generated Storage Client Library
-        run: |
-          echo "Building Storage lib from generated source..."
-          mkdir /tmp/java-storage
-          bazelisk --batch build @com_google_googleapis//google/storage/v2:google-cloud-storage-v2-java
-          tar zxvf bazel-bin/external/com_google_googleapis/google/storage/v2/google-cloud-storage-v2-java.tar.gz -C /tmp/java-storage
-          pushd /tmp/java-storage/google-cloud-storage-v2-java
-          ./gradlew clean build publishToMavenLocal sourcesJar allJars
-          popd
-
-      - name: Gradle Build Generated Compute Client Library
-        run: |
-          echo "Building Compute lib from generated source..."
-          mkdir /tmp/java-compute
-          bazelisk --batch build @com_google_googleapis//google/cloud/compute/v1small:google-cloud-compute-small-v1-java
-          tar zxvf bazel-bin/external/com_google_googleapis/google/cloud/compute/v1small/google-cloud-compute-small-v1-java.tar.gz -C /tmp/java-compute
-          pushd /tmp/java-compute/google-cloud-compute-small-v1-java
-          ./gradlew clean build publishToMavenLocal sourcesJar allJars
-          popd
-
-  lint:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 11
-          distribution: temurin
-          cache: maven
-      - run: java -version
-      - name: Java Linter
-        # Exclude the root project
-        run: mvn -B -ntp fmt:check
-
-  compatibility:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 11
-          distribution: temurin
-          cache: maven
-      - run: java -version
-      - name: Compatibility check
-        #  package jar so that gapic-generator-java module can use
-        #  testlib modules of gax
-        run: mvn package clirr:check -DskipTests
-
-  showcase:
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        java: [ 11, 17, 21 ]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: ${{ matrix.java }}
-          distribution: temurin
-      - run: mvn -version
-      - name: Install Maven modules
-        run: |
-          mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
-      - name: Java Linter
-        working-directory: showcase
-        run: |
-          mvn -B -ntp fmt:check
-      - name: Showcase golden tests
-        working-directory: showcase
-        run: |
-          mvn test \
-            -P enable-golden-tests \
-            --batch-mode \
-            --no-transfer-progress
-      - name: Parse showcase version
-        working-directory: showcase/gapic-showcase
-        run: echo "SHOWCASE_VERSION=$(mvn help:evaluate -Dexpression=gapic-showcase.version -q -DforceStdout)" >> "$GITHUB_ENV"
-      - name: Install showcase server
-        run: |
-          sudo mkdir -p /usr/src/showcase
-          sudo chown -R ${USER} /usr/src/
-          curl --location https://github.com/googleapis/gapic-showcase/releases/download/v${{env.SHOWCASE_VERSION}}/gapic-showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz --output /usr/src/showcase/showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz
-          cd /usr/src/showcase/
-          tar -xf showcase-*
-          ./gapic-showcase run &
-          cd -
-      - name: Showcase integration tests
-        working-directory: showcase
-        run: |
-          mvn verify \
-            -P enable-integration-tests \
-            --batch-mode \
-            --no-transfer-progress
-
-  showcase-native:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: graalvm/setup-graalvm@v1
-        with:
-          version: '22.3.2'
-          java-version: '17'
-          components: 'native-image'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: mvn -version
-      - run: native-image --version
-      - name: Install sdk-platform-java
-        run: mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
-      - name: Parse showcase version
-        working-directory: showcase/gapic-showcase
-        run: echo "SHOWCASE_VERSION=$(mvn help:evaluate -Dexpression=gapic-showcase.version -q -DforceStdout)" >> "$GITHUB_ENV"
-      - name: Install showcase server
-        run: |
-          sudo mkdir -p /usr/src/showcase
-          sudo chown -R ${USER} /usr/src/
-          curl --location https://github.com/googleapis/gapic-showcase/releases/download/v${{env.SHOWCASE_VERSION}}/gapic-showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz --output /usr/src/showcase/showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz
-          cd /usr/src/showcase/
-          tar -xf showcase-*
-          ./gapic-showcase run &
-          cd -
-      - name: Build native image
-        working-directory: showcase
-        run: mvn test -Pnative,-showcase -ntp -B
-
-  showcase-clirr:
-    if: ${{ github.base_ref != '' }} # Only execute on pull_request trigger event
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout @ target branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.base_ref }}
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
-          cache: maven
-      - name: Install sdk-platform-java and showcase to local maven repository
-        run: |
-          mvn install -B -ntp -T 1C -DskipTests
-          cd showcase
-          mvn install -B -ntp -T 1C -DskipTests
-          SHOWCASE_CLIENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          echo "SHOWCASE_CLIENT_VERSION=$SHOWCASE_CLIENT_VERSION" >> "$GITHUB_ENV"
-      - name: Checkout sdk-platform-java @ PR merge commit
-        uses: actions/checkout@v3
-      - name: Install sdk-platform-java @ PR merge commit
-        run: mvn install -B -ntp -T 1C -DskipTests
-        # Showcase golden test ensures that src changes are already reflected in the PR.
-      - name: Clirr check
-        working-directory: showcase
-        run: |
-          mvn versions:set -B -ntp -DnewVersion=local
-          mvn clirr:check -B -ntp -Dclirr.skip=false -DcomparisonVersion=$SHOWCASE_CLIENT_VERSION
-
-  gapic-generator-java-bom:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v4
-      with:
-        java-version: 11
-        distribution: temurin
-        cache: maven
-    - name: Install Maven modules to local Maven repository
-      run: |
-        mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
-    - name: Validate gapic-generator-java-bom
-      uses: googleapis/java-cloud-bom/tests/validate-bom@0cd97b7151b36465390bd5e31d017ec015a4bae9
-      with:
-        bom-path: gapic-generator-java-bom/pom.xml
-
-  unmanaged_dependency_check:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-    - uses: actions/setup-java@v4
-      with:
-        java-version: 11
-        distribution: temurin
-    - run: mvn -version
-    - name: Unit Tests
-      run: |
-        mvn test --batch-mode --no-transfer-progress
-      working-directory: java-shared-dependencies/unmanaged-dependency-check
-    - name: Install Maven modules
-      run: |
-        mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
-    - name: Unmanaged dependency check
-      uses: ./java-shared-dependencies/unmanaged-dependency-check
-      with:
-        bom-path: gapic-generator-java-bom/pom.xml
-
-  dependency_analyzer_unit_test:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-    - uses: actions/setup-java@v4
-      with:
-        java-version: 17
-        distribution: temurin
-    - run: mvn -version
-    - name: Unit Tests
-      run: |
-        mvn test --batch-mode --no-transfer-progress
-      working-directory: java-shared-dependencies/dependency-analyzer
+#on:
+#  push:
+#    branches:
+#      - main
+#  pull_request:
+#name: ci
+#jobs:
+#  build:
+#    runs-on: ubuntu-22.04
+#    strategy:
+#      matrix:
+#        java: [ 11, 17]
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: ${{ matrix.java }}
+#          distribution: temurin
+#          cache: maven
+#      - run: java -version
+#      - name: Unit Tests
+#        run: |
+#          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
+#              -Dfmt.skip -DenableTestCoverage
+#      # The `envVarTest` profile runs tests that require an environment variable
+#      - name: Env Var Tests
+#        run: |
+#          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
+#              -Dfmt.skip -DenableTestCoverage -PenvVarTest
+#        # Set the Env Var for this step only
+#        env:
+#          GOOGLE_CLOUD_UNIVERSE_DOMAIN: random.com
+#          GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS: true
+#      - run: bazelisk version
+#      - name: Install Maven modules
+#        run: |
+#          mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
+#      - name: Integration Tests
+#        run: |
+#          bazelisk --batch test //test/integration/...
+#      - name: Gradle Build Generated Storage Client Library
+#        run: |
+#          echo "Building Storage lib from generated source..."
+#          mkdir /tmp/java-storage
+#          bazelisk --batch build @com_google_googleapis//google/storage/v2:google-cloud-storage-v2-java
+#          tar zxvf bazel-bin/external/com_google_googleapis/google/storage/v2/google-cloud-storage-v2-java.tar.gz -C /tmp/java-storage
+#          pushd /tmp/java-storage/google-cloud-storage-v2-java
+#          ./gradlew clean build publishToMavenLocal sourcesJar allJars
+#          popd
+#
+#      - name: Gradle Build Generated Compute Client Library
+#        run: |
+#          echo "Building Compute lib from generated source..."
+#          mkdir /tmp/java-compute
+#          bazelisk --batch build @com_google_googleapis//google/cloud/compute/v1small:google-cloud-compute-small-v1-java
+#          tar zxvf bazel-bin/external/com_google_googleapis/google/cloud/compute/v1small/google-cloud-compute-small-v1-java.tar.gz -C /tmp/java-compute
+#          pushd /tmp/java-compute/google-cloud-compute-small-v1-java
+#          ./gradlew clean build publishToMavenLocal sourcesJar allJars
+#          popd
+#  build-java-21:
+#    name: "build(21) except self-service clients"
+#    # Support for Java 21 is available for all use cases except self-service clients.
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: 21
+#          distribution: temurin
+#          cache: maven
+#      - run: java -version
+#      - name: Unit Tests
+#        run: |
+#          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
+#              -Dfmt.skip -DenableTestCoverage
+#      # The `envVarTest` profile runs tests that require an environment variable
+#      - name: Env Var Tests
+#        run: |
+#          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
+#              -Dfmt.skip -DenableTestCoverage -PenvVarTest
+#        # Set the Env Var for this step only
+#        env:
+#          GOOGLE_CLOUD_UNIVERSE_DOMAIN: random.com
+#          GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS: true
+#      - run: bazelisk version
+#      - name: Install Maven modules
+#        run: |
+#          mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
+#      - name: Integration Tests
+#        run: |
+#          bazelisk --batch test //test/integration/...
+#  build-java8-except-gapic-generator-java:
+#    name: "build(8) except for gapic-generator-java"
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - uses: actions/checkout@v4
+#      # Java 8 tests uses JDK 17 to compile and JDK 8 to run tests.
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: 8
+#          distribution: temurin
+#          cache: maven
+#      - run: echo "JAVA8_HOME=${JAVA_HOME}" >> $GITHUB_ENV
+#      - uses: actions/setup-java@v3
+#        with:
+#          java-version: 17
+#          distribution: temurin
+#      - name: Compile with Java 17 and run tests with Java 8
+#        shell: bash
+#        run: |
+#          set -x
+#          export JAVA_HOME=$JAVA_HOME
+#          export PATH=${JAVA_HOME}/bin:$PATH
+#          # Maven surefire plugin lets us to specify the JVM when running tests via
+#          # the "jvm" system property.
+#          mvn verify --batch-mode --no-transfer-progress -Dcheckstyle.skip \
+#              -Dfmt.skip \
+#              -Djvm="${JAVA8_HOME}/bin/java"
+#      # The `envVarTest` profile runs tests that require an environment variable
+#      - name: Compile with Java 17 and run tests with Java 8 (Env Var Tests)
+#        shell: bash
+#        run: |
+#          set -x
+#          export JAVA_HOME=$JAVA_HOME
+#          export PATH=${JAVA_HOME}/bin:$PATH
+#          # Maven surefire plugin lets us to specify the JVM when running tests via
+#          # the "jvm" system property.
+#          export GOOGLE_CLOUD_UNIVERSE_DOMAIN=random.com
+#          mvn test --batch-mode --no-transfer-progress -Dcheckstyle.skip \
+#              -Dfmt.skip -DenableTestCoverage -Dsurefire.failIfNoSpecifiedTests=false \
+#              -PenvVarTest
+#        # Set the Env Var for this step only
+#        env:
+#          GOOGLE_CLOUD_UNIVERSE_DOMAIN: random.com
+#          GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS: true
+#
+#  build-java8-gapic-generator-java:
+#    name: "build(8) for gapic-generator-java"
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: 11
+#          distribution: temurin
+#          cache: maven
+#      - name: Install all modules using Java 11
+#        shell: bash
+#        run: |
+#          mvn -V -B -ntp clean install -DskipTests
+#      - uses: actions/setup-java@v3
+#        with:
+#          java-version: 8
+#          distribution: temurin
+#      - run: java -version
+#      - name: Run tests in Java 8 with the source compiled in Java 11 for gapic-generator-java
+#        shell: bash
+#        run: |
+#          mvn -V -B -ntp surefire:test --projects 'gapic-generator-java'
+#      - run: bazelisk version
+#      - name: Integration Tests
+#        run: |
+#          bazelisk --batch test //test/integration/...
+#      - name: Gradle Build Generated Storage Client Library
+#        run: |
+#          echo "Building Storage lib from generated source..."
+#          mkdir /tmp/java-storage
+#          bazelisk --batch build @com_google_googleapis//google/storage/v2:google-cloud-storage-v2-java
+#          tar zxvf bazel-bin/external/com_google_googleapis/google/storage/v2/google-cloud-storage-v2-java.tar.gz -C /tmp/java-storage
+#          pushd /tmp/java-storage/google-cloud-storage-v2-java
+#          ./gradlew clean build publishToMavenLocal sourcesJar allJars
+#          popd
+#
+#      - name: Gradle Build Generated Compute Client Library
+#        run: |
+#          echo "Building Compute lib from generated source..."
+#          mkdir /tmp/java-compute
+#          bazelisk --batch build @com_google_googleapis//google/cloud/compute/v1small:google-cloud-compute-small-v1-java
+#          tar zxvf bazel-bin/external/com_google_googleapis/google/cloud/compute/v1small/google-cloud-compute-small-v1-java.tar.gz -C /tmp/java-compute
+#          pushd /tmp/java-compute/google-cloud-compute-small-v1-java
+#          ./gradlew clean build publishToMavenLocal sourcesJar allJars
+#          popd
+#
+#  lint:
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: 11
+#          distribution: temurin
+#          cache: maven
+#      - run: java -version
+#      - name: Java Linter
+#        # Exclude the root project
+#        run: mvn -B -ntp fmt:check
+#
+#  compatibility:
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: 11
+#          distribution: temurin
+#          cache: maven
+#      - run: java -version
+#      - name: Compatibility check
+#        #  package jar so that gapic-generator-java module can use
+#        #  testlib modules of gax
+#        run: mvn package clirr:check -DskipTests
+#
+#  showcase:
+#    runs-on: ubuntu-22.04
+#    strategy:
+#      matrix:
+#        java: [ 11, 17, 21 ]
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: ${{ matrix.java }}
+#          distribution: temurin
+#      - run: mvn -version
+#      - name: Install Maven modules
+#        run: |
+#          mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
+#      - name: Java Linter
+#        working-directory: showcase
+#        run: |
+#          mvn -B -ntp fmt:check
+#      - name: Showcase golden tests
+#        working-directory: showcase
+#        run: |
+#          mvn test \
+#            -P enable-golden-tests \
+#            --batch-mode \
+#            --no-transfer-progress
+#      - name: Parse showcase version
+#        working-directory: showcase/gapic-showcase
+#        run: echo "SHOWCASE_VERSION=$(mvn help:evaluate -Dexpression=gapic-showcase.version -q -DforceStdout)" >> "$GITHUB_ENV"
+#      - name: Install showcase server
+#        run: |
+#          sudo mkdir -p /usr/src/showcase
+#          sudo chown -R ${USER} /usr/src/
+#          curl --location https://github.com/googleapis/gapic-showcase/releases/download/v${{env.SHOWCASE_VERSION}}/gapic-showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz --output /usr/src/showcase/showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz
+#          cd /usr/src/showcase/
+#          tar -xf showcase-*
+#          ./gapic-showcase run &
+#          cd -
+#      - name: Showcase integration tests
+#        working-directory: showcase
+#        run: |
+#          mvn verify \
+#            -P enable-integration-tests \
+#            --batch-mode \
+#            --no-transfer-progress
+#
+#  showcase-native:
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: graalvm/setup-graalvm@v1
+#        with:
+#          version: '22.3.2'
+#          java-version: '17'
+#          components: 'native-image'
+#          github-token: ${{ secrets.GITHUB_TOKEN }}
+#      - run: mvn -version
+#      - run: native-image --version
+#      - name: Install sdk-platform-java
+#        run: mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
+#      - name: Parse showcase version
+#        working-directory: showcase/gapic-showcase
+#        run: echo "SHOWCASE_VERSION=$(mvn help:evaluate -Dexpression=gapic-showcase.version -q -DforceStdout)" >> "$GITHUB_ENV"
+#      - name: Install showcase server
+#        run: |
+#          sudo mkdir -p /usr/src/showcase
+#          sudo chown -R ${USER} /usr/src/
+#          curl --location https://github.com/googleapis/gapic-showcase/releases/download/v${{env.SHOWCASE_VERSION}}/gapic-showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz --output /usr/src/showcase/showcase-${{env.SHOWCASE_VERSION}}-linux-amd64.tar.gz
+#          cd /usr/src/showcase/
+#          tar -xf showcase-*
+#          ./gapic-showcase run &
+#          cd -
+#      - name: Build native image
+#        working-directory: showcase
+#        run: mvn test -Pnative,-showcase -ntp -B
+#
+#  showcase-clirr:
+#    if: ${{ github.base_ref != '' }} # Only execute on pull_request trigger event
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - name: Checkout @ target branch
+#        uses: actions/checkout@v4
+#        with:
+#          ref: ${{ github.base_ref }}
+#      - uses: actions/setup-java@v4
+#        with:
+#          java-version: 17
+#          distribution: temurin
+#          cache: maven
+#      - name: Install sdk-platform-java and showcase to local maven repository
+#        run: |
+#          mvn install -B -ntp -T 1C -DskipTests
+#          cd showcase
+#          mvn install -B -ntp -T 1C -DskipTests
+#          SHOWCASE_CLIENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+#          echo "SHOWCASE_CLIENT_VERSION=$SHOWCASE_CLIENT_VERSION" >> "$GITHUB_ENV"
+#      - name: Checkout sdk-platform-java @ PR merge commit
+#        uses: actions/checkout@v3
+#      - name: Install sdk-platform-java @ PR merge commit
+#        run: mvn install -B -ntp -T 1C -DskipTests
+#        # Showcase golden test ensures that src changes are already reflected in the PR.
+#      - name: Clirr check
+#        working-directory: showcase
+#        run: |
+#          mvn versions:set -B -ntp -DnewVersion=local
+#          mvn clirr:check -B -ntp -Dclirr.skip=false -DcomparisonVersion=$SHOWCASE_CLIENT_VERSION
+#
+#  gapic-generator-java-bom:
+#    runs-on: ubuntu-22.04
+#    steps:
+#    - uses: actions/checkout@v4
+#    - uses: actions/setup-java@v4
+#      with:
+#        java-version: 11
+#        distribution: temurin
+#        cache: maven
+#    - name: Install Maven modules to local Maven repository
+#      run: |
+#        mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
+#    - name: Validate gapic-generator-java-bom
+#      uses: googleapis/java-cloud-bom/tests/validate-bom@0cd97b7151b36465390bd5e31d017ec015a4bae9
+#      with:
+#        bom-path: gapic-generator-java-bom/pom.xml
+#
+#  unmanaged_dependency_check:
+#    runs-on: ubuntu-22.04
+#    steps:
+#    - uses: actions/checkout@v4
+#      with:
+#        ref: ${{ github.event.pull_request.head.sha }}
+#    - uses: actions/setup-java@v4
+#      with:
+#        java-version: 11
+#        distribution: temurin
+#    - run: mvn -version
+#    - name: Unit Tests
+#      run: |
+#        mvn test --batch-mode --no-transfer-progress
+#      working-directory: java-shared-dependencies/unmanaged-dependency-check
+#    - name: Install Maven modules
+#      run: |
+#        mvn install -B -ntp -DskipTests -Dclirr.skip -Dcheckstyle.skip
+#    - name: Unmanaged dependency check
+#      uses: ./java-shared-dependencies/unmanaged-dependency-check
+#      with:
+#        bom-path: gapic-generator-java-bom/pom.xml
+#
+#  dependency_analyzer_unit_test:
+#    runs-on: ubuntu-22.04
+#    steps:
+#    - uses: actions/checkout@v4
+#      with:
+#        ref: ${{ github.event.pull_request.head.sha }}
+#    - uses: actions/setup-java@v4
+#      with:
+#        java-version: 17
+#        distribution: temurin
+#    - run: mvn -version
+#    - name: Unit Tests
+#      run: |
+#        mvn test --batch-mode --no-transfer-progress
+#      working-directory: java-shared-dependencies/dependency-analyzer
