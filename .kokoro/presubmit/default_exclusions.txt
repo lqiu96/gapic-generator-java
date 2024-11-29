@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LinkageCheckerFilter>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.pkcs.PKCSException"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.operator.OperatorCreationException"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.openssl.PEMParser"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.asn1.pkcs.PrivateKeyInfo"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.openssl.PEMKeyPair"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.openssl.PEMEncryptedKeyPair"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder"/>
+    </Target>
+    <Source>
+      <Class name="io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastlePemReader"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.HTTPHeader"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchResponse"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.HTTPResponse"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchResponse"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.HTTPMethod"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchTransport"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.FetchOptions"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchTransport"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.FetchOptions$Builder"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchTransport"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.HTTPRequest"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchRequest"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.HTTPHeader"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchRequest"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.FetchOptions"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchRequest"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.URLFetchServiceFactory"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchRequest"/>
+    </Source>
+  </LinkageError>
+  <LinkageError>
+    <Target>
+      <Class name="com.google.appengine.api.urlfetch.URLFetchService"/>
+    </Target>
+    <Source>
+      <Class name="com.google.api.client.extensions.appengine.http.UrlFetchRequest"/>
+    </Source>
+  </LinkageError>
+</LinkageCheckerFilter>
