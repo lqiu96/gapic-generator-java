@@ -1,0 +1,46 @@
+on:
+  workflow_dispatch:
+    inputs:
+      protobuf_versions:
+        description: 'Comma separated list of Protobuf-Java versions (i.e. "3.25.5","4.28.3")'
+        # Default value for workflow_dispatch flow. If updating default value, update below as well.
+        default: '"3.25.5","4.28.3"'
+        required: true
+  schedule:
+    - cron: '0 1 * * *' # Nightly at 1am
+
+name: Downstream Source Compatibility Nightly
+jobs:
+  downstream-protobuf-source-test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - google-cloud-java
+          - java-bigtable
+          - java-bigquery
+          - java-bigquerystorage
+          - java-datastore
+          - java-firestore
+          - java-logging
+          - java-logging-logback
+          - java-pubsub
+          - java-pubsublite
+          - java-spanner-jdbc
+          - java-spanner
+          - java-storage
+          - java-storage-nio
+        # Specify the Protobuf versions here as well because the default values above are only supplied from
+        # the workflow_dispatch flow. Without this, the nightly workflow doesn't have a default input otherwise
+        # and would resolve to ''. When updating, update both places to keep default values consistent.
+        protobuf-version: ${{ fromJSON(format('[{0}]', inputs.protobuf_versions || '"3.25.5","4.28.3"')) }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: temurin
+      - run: mvn -version
+      - name: Perform downstream compatibility testing
+        run: REPOS_UNDER_TEST="${{ matrix.repo }}" PROTOBUF_RUNTIME_VERSION="${{ matrix.protobuf-version}}" ./.kokoro/presubmit/downstream-protobuf-source-compatibility.sh
